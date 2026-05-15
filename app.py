@@ -20,7 +20,8 @@ from common.db import db_path
 from exercises.exercise_4_audit import build_graph
 
 
-load_dotenv()
+ROOT_DIR = Path(__file__).resolve().parent
+load_dotenv(ROOT_DIR / ".env", override=True)
 
 
 st.set_page_config(page_title="HITL PR Review", layout="wide")
@@ -151,8 +152,12 @@ if submitted and pr_url:
     st.session_state.interrupt_payload = None
     st.session_state.final = None
 
-    with st.spinner("Fetching PR and asking the LLM..."):
-        result = asyncio.run(run_graph(pr_url, st.session_state.thread_id))
+    try:
+        with st.spinner("Fetching PR and asking the LLM..."):
+            result = asyncio.run(run_graph(pr_url, st.session_state.thread_id))
+    except Exception as exc:
+        st.error(str(exc))
+        st.stop()
 
     if "__interrupt__" in result:
         st.session_state.interrupt_payload = result["__interrupt__"][0].value
@@ -167,10 +172,14 @@ if payload is not None:
         answer = render_escalation_card(payload)
 
     if answer is not None:
-        with st.spinner("Resuming graph..."):
-            result = asyncio.run(
-                run_graph(st.session_state.pr_url, st.session_state.thread_id, resume_value=answer)
-            )
+        try:
+            with st.spinner("Resuming graph..."):
+                result = asyncio.run(
+                    run_graph(st.session_state.pr_url, st.session_state.thread_id, resume_value=answer)
+                )
+        except Exception as exc:
+            st.error(str(exc))
+            st.stop()
         if "__interrupt__" in result:
             st.session_state.interrupt_payload = result["__interrupt__"][0].value
         else:
