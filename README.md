@@ -7,7 +7,7 @@ A 2-hour lab that builds a human-in-the-loop pull-request review agent in **Lang
 > 3. Confidence ~58% → escalate: show context + specific questions for the reviewer.
 > 4. Every interaction is written to a SQLite audit trail; full sessions can be replayed.
 
-Students complete **4 exercises** (`exercises/`) that together build the full system. Each exercise has a runnable skeleton with `# TODO:` markers — your job is to fill them in.
+Students complete **5 exercises** (`exercises/` plus `app.py`) that together build the full system. Each exercise has a runnable skeleton with `# TODO:` markers — your job is to fill them in.
 
 ## Background — what problem does this solve?
 
@@ -55,7 +55,7 @@ Every node also writes one row to `audit_events`. The graph state is persisted b
 - HITL agent
 - Approval UI (Streamlit)
 - Confidence-based routing
-- PostgreSQL audit trail
+- SQLite audit trail
 
 **What this scaffolding already covers.** Exercises 1–4 deliver the HITL agent, confidence-based routing, and the structured audit trail. Two implementation notes:
 - The lab uses **SQLite** (`./hitl_audit.db`) instead of PostgreSQL for zero-setup. The schema is row-oriented with first-class columns — the same `AuditEntry` queries transfer to Postgres in production by swapping the checkpointer and connection string.
@@ -245,7 +245,7 @@ The same three confidence buckets apply, but the *human experience* changes per 
 |---|---|---|
 | **> 72%** | `auto_approve` | A success card: confidence + LLM summary + a "View comment on GitHub" link. Reviewer does **nothing** — agent already posted. |
 | **58–72%** | `human_approval` | The normal approval card: diff, LLM reasoning, list of comments + three buttons **Approve / Reject / Edit**. One click and the comment posts. |
-| **< 58%** | `escalate` | The strong-escalation card: risk factors highlighted + a form with the LLM's specific questions. Reviewer fills answers, agent re-synthesizes, then shows the refined review for a final confirm. |
+| **< 58%** | `escalate` | The strong-escalation card: risk factors highlighted + a form with the LLM's specific questions. Reviewer fills answers, agent re-synthesizes, then posts the refined review. |
 
 **You implement** (`app.py` at the repo root):
 

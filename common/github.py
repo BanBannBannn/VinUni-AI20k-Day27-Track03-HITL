@@ -102,6 +102,10 @@ def post_review_comment(pr_url: str, body: str) -> None:
 
     Takes the PR URL directly so callers don't need a `PullRequest` object.
     """
+    if os.environ.get("DRY_RUN", "").lower() in {"1", "true", "yes"}:
+        print(f"[DRY_RUN] Would post comment to {pr_url}:\n{body}\n")
+        return
+
     owner, repo, number = parse_pr_url(pr_url)
     url = f"{API}/repos/{owner}/{repo}/issues/{number}/comments"
     with httpx.Client(timeout=30.0) as client:

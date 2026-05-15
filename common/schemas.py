@@ -1,5 +1,4 @@
-"""Shared types: the graph state, the LLM's structured analysis output,
-and the structured audit-trail entry written to PostgreSQL."""
+"""Shared types: graph state, LLM structured output, and SQLite audit entries."""
 
 from __future__ import annotations
 
@@ -14,9 +13,9 @@ HumanChoice = Literal["approve", "reject", "edit"]
 
 
 # Confidence thresholds
-AUTO_APPROVE_THRESHOLD = 0.73   # >= 73% → no human, agent commits the comment directly
-ESCALATE_THRESHOLD = 0.58       # < 58% → escalate: agent asks the reviewer specific questions
-# 58–72% inclusive → human approval flow (reviewer clicks Approve / Reject / Edit)
+AUTO_APPROVE_THRESHOLD = 0.90   # >= 90% and clean review → no human, agent comments directly
+ESCALATE_THRESHOLD = 0.58       # < 58% or blocker/high-risk issue → ask reviewer questions
+# 58-89% inclusive, or high-confidence-but-not-clean → human approval flow.
 
 
 def risk_level_for(confidence: float) -> str:
@@ -59,8 +58,25 @@ class PRAnalysis(BaseModel):
     )
 
 
+def route_decision_for_analysis(analysis: PRAnalysis) -> Decision:
+    """Conservative routing for the lab.
+
+    Confidence alone is not enough. If the model found concrete risks or
+    serious comments, keep a human in the loop even when confidence is high.
+    """
+    severities = {comment.severity for comment in analysis.comments}
+    has_serious_comment = bool(severities & {"issue", "blocker"})
+    has_risk = bool(analysis.risk_factors)
+
+    if "blocker" in severities or analysis.confidence < ESCALATE_THRESHOLD:
+        return "escalate"
+    if analysis.confidence >= AUTO_APPROVE_THRESHOLD and not has_risk and not has_serious_comment:
+        return "auto_approve"
+    return "human_approval"
+
+
 class AuditEntry(BaseModel):
-    """One row of the PostgreSQL audit trail.
+    """One row of the SQLite audit trail.
 
     Designed as a structured *decision log* — one entry per meaningful event
     in a review session (LLM analysis, HITL interrupt, reviewer response,
